@@ -372,13 +372,18 @@ def main():
                         # Prepare data for saving
                         # Merge labeled data with all previously labeled data
                         if existing_labels is not None:
+                            # Create a composite key for precise duplicate detection
                             # Remove rows from existing_labels that match current filtered_comments
-                            # to avoid duplicates
-                            mask = ~(
-                                existing_labels['text_original'].isin(filtered_comments['text_original']) &
-                                existing_labels['videoId'].isin(filtered_comments['videoId'])
-                            )
-                            other_labels = existing_labels[mask]
+                            # based on both text_original AND videoId
+                            existing_labels['_key'] = existing_labels['text_original'] + '|||' + existing_labels['videoId'].astype(str)
+                            filtered_comments['_key'] = filtered_comments['text_original'] + '|||' + filtered_comments['videoId'].astype(str)
+                            
+                            # Keep only existing labels that are not in the current filtered set
+                            other_labels = existing_labels[~existing_labels['_key'].isin(filtered_comments['_key'])].copy()
+                            other_labels = other_labels.drop(columns=['_key'])
+                            
+                            # Remove the temporary key from filtered_comments
+                            filtered_comments = filtered_comments.drop(columns=['_key'])
                             
                             # Combine with newly labeled data
                             all_labeled = pd.concat([other_labels, filtered_comments], ignore_index=True)
